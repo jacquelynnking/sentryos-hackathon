@@ -78,6 +78,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3.3.3
         version: 3.3.3
+      '@sentry/node':
+        specifier: ^10.38.0
+        version: 10.38.0
       '@tailwindcss/postcss':
         specifier: ^4.1.18
         version: 4.1.18

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { Send, Bot, User, Loader2, Wrench, Search, Globe, FileText, Terminal } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -71,12 +72,19 @@ export function Chat() {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
+    const startTime = Date.now()
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content: input.trim(),
       timestamp: new Date()
     }
+
+    Sentry.logger.info('Chat message sent', {
+      message_length: userMessage.content.length,
+      message_id: userMessage.id
+    })
+    Sentry.metrics.increment('chat.message_sent', 1)
 
     setMessages(prev => [...prev, userMessage])
     setInput('')
@@ -145,6 +153,10 @@ export function Chat() {
                     : msg
                 ))
               } else if (parsed.type === 'tool_start') {
+                Sentry.logger.debug('Tool started', { tool_name: parsed.tool })
+                Sentry.metrics.increment('chat.tool_used', 1, {
+                  tags: { tool: parsed.tool }
+                })
                 setCurrentTool({
                   name: parsed.tool,
                   status: 'running'
@@ -175,8 +187,20 @@ export function Chat() {
       // If no content was streamed, remove the placeholder
       if (!streamingContent) {
         setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId))
+      } else {
+        const responseTime = Date.now() - startTime
+        Sentry.logger.info('Chat response received', {
+          response_length: streamingContent.length,
+          response_time_ms: responseTime
+        })
+        Sentry.metrics.distribution('chat.response_time', responseTime, {
+          unit: 'millisecond'
+        })
+        Sentry.metrics.increment('chat.response_received', 1)
       }
-    } catch {
+    } catch (error) {
+      Sentry.logger.error('Chat request failed', { error })
+      Sentry.metrics.increment('chat.error', 1)
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',

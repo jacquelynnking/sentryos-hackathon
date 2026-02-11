@@ -1,5 +1,6 @@
 'use client'
 
+import * as Sentry from '@sentry/nextjs'
 import { WindowManagerProvider, useWindowManager } from './WindowManager'
 import { Window } from './Window'
 import { Taskbar } from './Taskbar'
@@ -7,7 +8,7 @@ import { DesktopIcon } from './DesktopIcon'
 import { Notepad } from './apps/Notepad'
 import { FolderView, FolderItem } from './apps/FolderView'
 import { Chat } from './apps/Chat'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const INSTALL_GUIDE_CONTENT = `# SentryOS Install Guide
 
@@ -58,7 +59,16 @@ function DesktopContent() {
   const { windows, openWindow } = useWindowManager()
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null)
 
+  useEffect(() => {
+    Sentry.logger.info('SentryOS Desktop loaded')
+    Sentry.metrics.increment('desktop.loaded', 1)
+  }, [])
+
   const openInstallGuide = () => {
+    Sentry.logger.info('Application opened', { app: 'install-guide' })
+    Sentry.metrics.increment('desktop.app_opened', 1, {
+      tags: { app: 'install-guide' }
+    })
     openWindow({
       id: 'install-guide',
       title: 'Install Guide.md',
@@ -76,6 +86,10 @@ function DesktopContent() {
   }
 
   const openChatWindow = () => {
+    Sentry.logger.info('Application opened', { app: 'chat' })
+    Sentry.metrics.increment('desktop.app_opened', 1, {
+      tags: { app: 'chat' }
+    })
     openWindow({
       id: 'chat',
       title: 'SentryOS Chat',
@@ -93,6 +107,10 @@ function DesktopContent() {
   }
 
   const openAgentsFolder = () => {
+    Sentry.logger.info('Application opened', { app: 'agents-folder' })
+    Sentry.metrics.increment('desktop.app_opened', 1, {
+      tags: { app: 'agents-folder' }
+    })
     const agentsFolderItems: FolderItem[] = []
 
     openWindow({
@@ -109,6 +127,11 @@ function DesktopContent() {
       isMaximized: false,
       content: <FolderView items={agentsFolderItems} folderName="Agents" />
     })
+  }
+
+  const testSentryError = () => {
+    // Trigger a test error to verify Sentry is working
+    throw new Error("Sentry Test Error - This error should appear in your Sentry dashboard!");
   }
 
   const handleDesktopClick = () => {
@@ -161,6 +184,14 @@ function DesktopContent() {
           onDoubleClick={openChatWindow}
           selected={selectedIcon === 'chat'}
           onSelect={() => setSelectedIcon('chat')}
+        />
+        <DesktopIcon
+          id="sentry-test"
+          label="Test Sentry"
+          icon="document"
+          onDoubleClick={testSentryError}
+          selected={selectedIcon === 'sentry-test'}
+          onSelect={() => setSelectedIcon('sentry-test')}
         />
       </div>
 
